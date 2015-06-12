@@ -8,10 +8,10 @@ insert_invoke(Operator *op, Tuple *t)
     C4Runtime *c4 = op->chain->c4;
     InsertOperator *insert_op = (InsertOperator *) op;
 
-    if (router_is_deleting(c4->router))
-        router_delete_tuple(c4->router, t, insert_op->tbl_def);
-    else
-        router_insert_tuple(c4->router, t, insert_op->tbl_def, true);
+    // if (router_is_deleting(c4->router))
+    //     router_delete_tuple(c4->router, t, insert_op->tbl_def);
+    // else
+    router_insert_tuple(c4->router, t, insert_op->tbl_def, true);
 }
 
 InsertOperator *

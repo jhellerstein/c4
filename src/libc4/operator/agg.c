@@ -5,7 +5,7 @@
 #include "nodes/copyfuncs.h"
 
 static bool add_new_tuple(Tuple *t, AggOperator *agg_op);
-static void agg_do_delete(Tuple *t, AggOperator *agg_op);
+// static void agg_do_delete(Tuple *t, AggOperator *agg_op);
 static void agg_do_insert(Tuple *t, AggOperator *agg_op);
 
 static void
@@ -23,10 +23,10 @@ agg_invoke(Operator *op, Tuple *t)
     need_work = add_new_tuple(t, agg_op);
     if (need_work)
     {
-        if (router_is_deleting(c4->router))
-            agg_do_delete(t, agg_op);
-        else
-            agg_do_insert(t, agg_op);
+        // if (router_is_deleting(c4->router))
+        //     agg_do_delete(t, agg_op);
+        // else
+        agg_do_insert(t, agg_op);
     }
 }
 
@@ -35,30 +35,30 @@ add_new_tuple(Tuple *t, AggOperator *agg_op)
 {
     C4Runtime *c4 = agg_op->op.chain->c4;
 
-    if (router_is_deleting(c4->router))
-    {
-        Tuple *old_t;
-        unsigned int new_count;
+    // if (router_is_deleting(c4->router))
+    // {
+    //     Tuple *old_t;
+    //     unsigned int new_count;
 
-        old_t = rset_remove(agg_op->tuple_set, t, &new_count);
-        if (old_t != NULL && new_count == 0)
-        {
-            tuple_unpin(old_t, agg_op->op.proj_schema);
-            return true;
-        }
+    //     old_t = rset_remove(agg_op->tuple_set, t, &new_count);
+    //     if (old_t != NULL && new_count == 0)
+    //     {
+    //         tuple_unpin(old_t, agg_op->op.proj_schema);
+    //         return true;
+    //     }
 
-        return false;
-    }
-    else
-    {
-        bool is_new;
+    //     return false;
+    // }
+    // else
+    // {
+    bool is_new;
 
-        is_new = rset_add(agg_op->tuple_set, t);
-        if (is_new)
-            tuple_pin(t);
+    is_new = rset_add(agg_op->tuple_set, t);
+    if (is_new)
+        tuple_pin(t);
 
-        return is_new;
-    }
+    return is_new;
+    // }
 }
 
 static void
@@ -69,8 +69,8 @@ emit_agg_output(AggGroupState *group, AggOperator *agg_op)
 
     if (group->output_tup)
     {
-        router_delete_tuple(c4->router, group->output_tup,
-                            agg_op->output_tbl);
+        // router_delete_tuple(c4->router, group->output_tup,
+        //                     agg_op->output_tbl);
         tuple_unpin(group->output_tup, agg_op->op.proj_schema);
     }
 
@@ -176,19 +176,19 @@ free_agg_group(AggGroupState *group, AggOperator *agg_op)
     agg_op->free_groups = group;
 }
 
-static void
-remove_agg_group(AggGroupState *group, AggOperator *agg_op)
-{
-    C4Runtime *c4 = agg_op->op.chain->c4;
-    bool found;
+// static void
+// remove_agg_group(AggGroupState *group, AggOperator *agg_op)
+// {
+//     C4Runtime *c4 = agg_op->op.chain->c4;
+//     bool found;
 
-    found = c4_hash_remove(agg_op->group_tbl, group->key);
-    if (!found)
-        ERROR("Failed to re-find group for key");
+//     found = c4_hash_remove(agg_op->group_tbl, group->key);
+//     if (!found)
+//         ERROR("Failed to re-find group for key");
 
-    router_delete_tuple(c4->router, group->output_tup, agg_op->output_tbl);
-    free_agg_group(group, agg_op);
-}
+//     router_delete_tuple(c4->router, group->output_tup, agg_op->output_tbl);
+//     free_agg_group(group, agg_op);
+// }
 
 static void
 advance_agg_group(Tuple *t, bool forward,
@@ -196,6 +196,7 @@ advance_agg_group(Tuple *t, bool forward,
 {
     int i;
 
+    ASSERT(forward);
     for (i = 0; i < agg_op->num_aggs; i++)
     {
         AggExprInfo *agg_info;
@@ -205,10 +206,10 @@ advance_agg_group(Tuple *t, bool forward,
         agg_info = agg_op->agg_info[i];
         input_val = tuple_get_val(t, agg_info->colno);
 
-        if (forward)
-            trans_f = agg_info->desc->fw_trans_f;
-        else
-            trans_f = agg_info->desc->bw_trans_f;
+//        if (forward)
+        trans_f = agg_info->desc->fw_trans_f;
+        // else
+        //     trans_f = agg_info->desc->bw_trans_f;
 
         group->state_vals[i] = trans_f(group->state_vals[i], input_val);
     }
@@ -216,24 +217,24 @@ advance_agg_group(Tuple *t, bool forward,
     emit_agg_output(group, agg_op);
 }
 
-static void
-agg_do_delete(Tuple *t, AggOperator *agg_op)
-{
-    AggGroupState *agg_group;
+// static void
+// agg_do_delete(Tuple *t, AggOperator *agg_op)
+// {
+//     AggGroupState *agg_group;
 
-    agg_group = c4_hash_get(agg_op->group_tbl, t);
-    if (agg_group == NULL)
-        return;
+//     agg_group = c4_hash_get(agg_op->group_tbl, t);
+//     if (agg_group == NULL)
+//         return;
 
-    agg_group->count--;
-    if (agg_group->count == 0)
-    {
-        remove_agg_group(agg_group, agg_op);
-        return;
-    }
+//     agg_group->count--;
+//     if (agg_group->count == 0)
+//     {
+//         remove_agg_group(agg_group, agg_op);
+//         return;
+//     }
 
-    advance_agg_group(t, false, agg_group, agg_op);
-}
+//     advance_agg_group(t, false, agg_group, agg_op);
+// }
 
 static void
 agg_do_insert(Tuple *t, AggOperator *agg_op)

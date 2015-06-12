@@ -32,8 +32,8 @@ struct C4Router
 
     /* Inserts and deletes computed within current fixpoint; to-be-routed */
     TupleBuf *insert_buf;
-    TupleBuf *delete_buf;
-    bool routing_deletes;       /* Are we currently routing from delete_buf? */
+    //TupleBuf *delete_buf;
+    //bool routing_deletes;       /* Are we currently routing from delete_buf? */
 
     /* Pending network output tuples computed within current fixpoint */
     TupleBuf *net_buf;
@@ -53,8 +53,8 @@ router_make(C4Runtime *c4)
     router->pool = c4->pool;
     router->op_chain_tbl = apr_hash_make(router->pool);
     router->insert_buf = tuple_buf_make(4096, router->pool);
-    router->delete_buf = tuple_buf_make(512, router->pool);
-    router->routing_deletes = false;
+   // router->delete_buf = tuple_buf_make(512, router->pool);
+// router->routing_deletes = false;
     router->net_buf = tuple_buf_make(512, router->pool);
     s = apr_queue_create(&router->queue, 512, router->pool);
     if (s != APR_SUCCESS)
@@ -99,10 +99,10 @@ route_tuple_buf(C4Router *router, TupleBuf *buf, bool is_delete)
         {
             Operator *start = op_chain->chain_start;
 
-            if (op_chain->anti_chain)
-                router->routing_deletes = !is_delete;
-            else
-                router->routing_deletes = is_delete;
+          //  if (op_chain->anti_chain)
+          //      router->routing_deletes = !is_delete;
+          //  else
+          //      router->routing_deletes = is_delete;
 
             start->invoke(start, tuple);
             op_chain = op_chain->next;
@@ -117,7 +117,7 @@ static bool
 has_pending_tuples(C4Router *router)
 {
     return (!tuple_buf_is_empty(router->insert_buf) ||
-            !tuple_buf_is_empty(router->delete_buf) ||
+     /*       !tuple_buf_is_empty(router->delete_buf) || */
             !tuple_buf_is_empty(router->net_buf));
 }
 #endif
@@ -127,11 +127,11 @@ router_do_fixpoint(C4Router *router)
 {
     TupleBuf *net_buf = router->net_buf;
 
-    while (!tuple_buf_is_empty(router->insert_buf) ||
-           !tuple_buf_is_empty(router->delete_buf))
+    while (!tuple_buf_is_empty(router->insert_buf))
+        // ||   !tuple_buf_is_empty(router->delete_buf))
     {
         route_tuple_buf(router, router->insert_buf, false);
-        route_tuple_buf(router, router->delete_buf, true);
+//        route_tuple_buf(router, router->delete_buf, true);
     }
 
     /* If we modified persistent storage, commit to disk */
@@ -188,18 +188,18 @@ router_insert_tuple(C4Router *router, Tuple *tuple, TableDef *tbl_def,
     router_enqueue_internal(router, tuple, tbl_def);
 }
 
-void
-router_delete_tuple(C4Router *router, Tuple *tuple, TableDef *tbl_def)
-{
-#if 0
-    c4_log(router->c4, "%s: %s (=> %s)",
-           __func__, log_tuple(router->c4, tuple, tbl_def->schema),
-           tbl_def->name);
-#endif
-
-    table_invoke_callbacks(tuple, tbl_def, true);
-    tuple_buf_push(router->delete_buf, tuple, tbl_def);
-}
+//void
+//router_delete_tuple(C4Router *router, Tuple *tuple, TableDef *tbl_def)
+//{
+//#if 0
+//    c4_log(router->c4, "%s: %s (=> %s)",
+//           __func__, log_tuple(router->c4, tuple, tbl_def->schema),
+//           tbl_def->name);
+//#endif
+//
+//    table_invoke_callbacks(tuple, tbl_def, true);
+//    tuple_buf_push(router->delete_buf, tuple, tbl_def);
+//}
 
 static void
 route_program(C4Router *router, const char *src)
@@ -357,8 +357,8 @@ router_enqueue_internal(C4Router *router, Tuple *tuple, TableDef *tbl_def)
     tuple_buf_push(router->insert_buf, tuple, tbl_def);
 }
 
-bool
-router_is_deleting(C4Router *router)
-{
-    return router->routing_deletes;
-}
+//bool
+//router_is_deleting(C4Router *router)
+//{
+//    return router->routing_deletes;
+//}
